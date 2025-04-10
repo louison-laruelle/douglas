@@ -1,7 +1,7 @@
 # DOuGLAS v1.0 - GPLv3
-# Louison Laruelle, laruelle@gfz-potsdam.fr
-# Manual:   
-# Download:
+# Louison Laruelle, laruelle@gfz.de
+# Manual: https://doi.org/10.48440/wsm.2025.002
+# Download: https://github.com/louison-laruelle/douglas
 
 ##################################################################################################
 
@@ -27,15 +27,8 @@ threshold = 95#%
 
 # functions
 ###############################################################################################
-def fast_calibration_main(folder, shmax,shmin,stress_vars,bcs,name, macro):
+def fast_calibration_main(folder, shmax,shmin,stress_vars,bcs,name):
     import os.path
-    import tecplot
-    
-    if macro == "on":
-        write_macro(shmax,shmin,stress_vars,name,folder)
-        # A break appears here in order to execute the macro in Tecplot.
-        print ('Execute Macro in Tecplot...')
-        input("...then press Enter to continue...")
     
     [shmax_calib,shmin_calib] = load_csv(name,len(shmax),len(shmin),stress_vars)
   
@@ -64,7 +57,9 @@ def write_macro(shmax,shmin,stress_vars,name,folder):
   
   # Start writing the macro file with its header.
   # (The header may vary depending on Tecplot version.)
-  fid =  open('macro_outlier.mcr','w')
+  macro_name = name + '.mcr'
+  fid =  open(macro_name
+              ,'w')
   fid.write('#!MC 1410\n\n')
   # Find the number Tecplot assigned to the variables according to their names.
   fid.write('$!GETVARNUMBYNAME |SHMAX|\nNAME = "%s"\n$!GETVARNUMBYNAME |SHMIN|\nNAME = "%s"\n\n' % (stress_vars[0],stress_vars[1]))
@@ -219,13 +214,6 @@ def bc_generator(bcs, filename, stress_vars, name):
     import pandas as pd
     import os
     
-    def create_fastcal_input(mat):
-        # create a correct input for fast calibration
-        shmin = [row[1:] for row in mat if row[0] == 'shmin']
-        shmax = [row[1:] for row in mat if row[0] == 'shmax']
-        shmin, shmax = np.array(shmin, dtype=float), np.array(shmax, dtype=float)
-        return shmin, shmax
-    
     def create_matrix(df, col_ind):
         # create a stress magnitudes matrix from the stress magnitudes dataframe
         # df is the pandas dataframe corresponding to the Excel or CSV file
@@ -238,10 +226,10 @@ def bc_generator(bcs, filename, stress_vars, name):
         df.fillna("nan", inplace=True)
         # creates a matrix of all the stress magnitudes values
         # each line is organized as [type of data (shmin/shmax), x, y, z (bsl), stress magnitude, 0] 
-        ls = [[df.columns[j], df.iloc[i, 0], df.iloc[i, 1], df.iloc[i, 2], df.iloc[i, j], 0]
+        mat = [[df.columns[j], df.iloc[i, 0], df.iloc[i, 1], df.iloc[i, 2], df.iloc[i, j], 0]
             for j in col_ind for i in range(len(df))
             if df.iloc[i, j] != "nan"]
-        return ls
+        return mat
     
     def all_combinations_rows(mat, n):
         # generates all the possible combinations of three elements
@@ -258,16 +246,15 @@ def bc_generator(bcs, filename, stress_vars, name):
         all_combinations = list(combinations(range(len(mat)), n)) # list of all possible combinations of 3 indices
         
         for combination in all_combinations:
-            ls_calib = np.copy(mat)
+            calib_ls = np.copy(mat)
             random_row_indices = np.array(combination) 
-            ls_calib[random_row_indices, -1] = 1  # Mark selected rows with an 1 (weight for the weighted average)
-            shmin, shmax = create_fastcal_input(ls_calib)
+            calib_ls[random_row_indices, -1] = 1  # Mark selected rows with an 1 (weight for the weighted average)
+            shmin, shmax = np.array([row[1:] for row in calib_ls if row[0] == 'shmin'], dtype = float), np.array([row[1:] for row in calib_ls if row[0] == 'shmax'], dtype = float)
             # Ensure both shmin and shmax have at least one valid entry
             if has_non_zero_last_element(shmin) and has_non_zero_last_element(shmax):
-
                 yield shmin, shmax
     
-# Determine the file type and read the data
+    # Determine the file type and read the data
     if filename.endswith('.xlsx') or filename.endswith('.xls'):
         df = pd.read_excel(filename)  # Read Excel file
     elif filename.endswith('.csv'):
@@ -282,19 +269,21 @@ def bc_generator(bcs, filename, stress_vars, name):
     
     # Estimate reference boundary conditions
     calib_all = create_matrix(df, col_ind)  # list of all the calibration values,
-    ls_calib = np.array(calib_all)
-    ls_calib[:, -1] = 1 # set the weight of all the samples to 1
-    shmin_ref, shmax_ref = create_fastcal_input(ls_calib) 
+    calib_ls = np.array(calib_all)
+    calib_ls[:, -1] = 1 # set the weight of all the samples to 1
+    shmin_ref, shmax_ref = np.array([row[1:] for row in calib_ls if row[0] == 'shmin'], dtype = float), np.array([row[1:] for row in calib_ls if row[0] == 'shmax'], dtype = float)
     all_samples = np.concatenate([shmin_ref.T[0:4], shmax_ref.T[0:4]], axis = 1) # create a list of all the stress magnitudes
-    macro = "on" # to run the macro and create .csv files of the local stress magnitudes
-    bcx_ref, bcy_ref = fast_calibration_main(folder, shmax_ref, shmin_ref, stress_vars, bcs, name, macro)
+    
+    write_macro(shmax_ref,shmin_ref,stress_vars,name,folder)
+    # A break appears here in order to execute the macro in Tecplot.
+    print ('Execute Macro in Tecplot...')
+    input("...then press Enter to continue...")
     
     n_size = 3 # size of the subsets
-    macro = "off" # no need to run the macro anymore
 
     k = np.sum(np.array(calib_all)[:, 0] == "shmin") # number of shmin data
     n_iterations = comb_number(n_size, len(all_samples[0]), k) # number of iterations of the process
-    print("\n"+str(n_iterations)+" iterations of the process")
+    print(str(n_iterations)+" iterations of the process")
     
     # Create empty list for boundary conditions and stress magnitudes
     boot_ls = np.zeros((n_iterations, n_size, 4))
@@ -305,9 +294,9 @@ def bc_generator(bcs, filename, stress_vars, name):
     for i, (shmin, shmax) in enumerate(tqdm(combinations_generator, desc="Creating BC list", unit=" iteration")):
         filtered_shmin, filtered_shmax = shmin[shmin[:, -1] != 0], shmax[shmax[:, -1] != 0] # shmin, shmax couples used
         boot_ls[i][:][:] = np.concatenate([filtered_shmin[:, 0:4], filtered_shmax[:, 0:4]], axis = 0)
-        bc_list[i][0], bc_list[i][1] = fast_calibration_main(folder, shmax, shmin, stress_vars, bcs, name, macro)
-    print('\nBC list created!')
-    return bc_list, all_samples, calib_all, boot_ls, bcx_ref, bcy_ref
+        bc_list[i][0], bc_list[i][1] = fast_calibration_main(folder, shmax, shmin, stress_vars, bcs, name)
+    print('BC list created!')
+    return bc_list, calib_ls, boot_ls
 
 ###############################################################################################
 def crw(data, threshold):
@@ -329,19 +318,20 @@ def crw(data, threshold):
     y_percentile = np.percentile(data_centered[:, 1], threshold)
 
     # Scaling factors to bring 90% of points between -0.5 and 0.5
-    x_scaling_factor = 1 / ( norm.ppf(threshold / 100) * x_percentile)
-    y_scaling_factor = 1 / ( norm.ppf(threshold / 100) * y_percentile)
+    x_scaling_factor = 1 / ( abs(norm.ppf(threshold / 100)) * x_percentile + 0.0001)
+    y_scaling_factor = 1 / ( abs(norm.ppf(threshold / 100)) * y_percentile + 0.0001)
 
     # Scale the data
     data_scaled = data_centered * np.array([x_scaling_factor, y_scaling_factor])
     return data_scaled
 
 ###############################################################################################
-def sample_scores(boot_ls, bc_list, all_samples, threshold):
+def sample_scores(boot_ls, bc_list, calib_ls, threshold):
     import numpy as np
-
+    all_samples = np.concatenate([np.array([row[1:] for row in calib_ls if row[0] == 'shmin'],dtype = float).T[0:4],
+                                  np.array([row[1:] for row in calib_ls if row[0] == 'shmax'],dtype = float).T[0:4]], axis = 1) # create a list of all the stress magnitudes
     printed_extent_message = False  # Flag to ensure the extent message is printed only once
-
+    
     while True:  # Start an iterative loop
         # Compute the transformed square with the current threshold
         bc_list_square = crw(bc_list, threshold)
@@ -395,53 +385,107 @@ def sample_scores(boot_ls, bc_list, all_samples, threshold):
     return bc_list_square, outlier_count
 
 ###############################################################################################
-def plot_figure(bc_list, bc_list_square, outlier_count, calib_all, bcx_ref, bcy_ref):
+def plot_results(bc_list, bc_list_square, outlier_count, calib_ls, filename, stress_vars):
     import matplotlib.pyplot as plt
     import matplotlib.patches as patches
     from matplotlib.widgets import Slider
     import numpy as np
+    import os
     import warnings
     
     # Suppress only FutureWarnings
     warnings.simplefilter(action='ignore', category=UserWarning)
     
     def update_plot(val):
-        threshold = slider.val  # Update threshold value from the slider
-        bar_colors = ['red' if count > threshold else 'skyblue' for count in outlier_count]  # Recolor based on new threshold
+        # Updates the plot as the user moves the slider
+        detect_thresh = slider.val  # Update threshold value from the slider
+        bar_colors = ['red' if count > detect_thresh * count_max / 100 else 'skyblue' for count in outlier_count]  # Recolor based on new threshold
 
         # Clear previous bar plot in the ax3 subplot
         ax3.clear()
 
         # Redraw the bar plot with updated colors
-        ax3.bar(index_labels, outlier_count, color=bar_colors)
+        ax3.axhline(detect_thresh_init, linestyle = "--", c = "lightblue", zorder = 0)
+        ax3.bar(index_labels, outlier_count/np.max(outlier_count)*100, color=bar_colors, zorder = 1)
+        ax3.axhline(detect_thresh, linestyle = "--", c = "r")
         ax3.set_xticks(range(len(index_labels)))
         ax3.set_xticklabels(index_labels, rotation=45, fontsize=7, rotation_mode="anchor", ha='right')
-        ax3.set_xlabel('Location')
-        ax3.set_ylabel('Outlier Count')
-        ax3.set_title(f'Outlier Presence by Location (Threshold: {slider.val:.3f})')
+        ax3.set_ylim([0, 100])
+        ax3.set_xlabel('Stress magnitude data record', fontsize = 11)
+        ax3.set_ylabel('Score (as percentage of the max. score)', fontsize = 11)
+        ax3.set_title(f'Outlier Detection by Location (Detection level: {slider.val:.1f}% of the maximum score)')
         
+        # Update BC in ax1
+        ls_weights = [0 if count > detect_thresh * count_max / 100 else 1 for count in outlier_count]
+        calib_ls[:, -1] = ls_weights # set the weight of all the samples that are not labeled as outliers to 1
+        shmin_new, shmax_new = np.array([row[1:] for row in calib_ls if row[0] == 'shmin'], dtype = float), np.array([row[1:] for row in calib_ls if row[0] == 'shmax'], dtype = float)
+        if all(sublist[-1] == 0 for sublist in shmin_new) or all(sublist[-1] == 0 for sublist in shmax_new):
+            #check if the calibration is still possible
+            pass # do not plot anything 
+        else:
+            bcx_new, bcy_new = fast_calibration_main(folder, shmax_new, shmin_new, stress_vars, bcs, name) # boundary conditions without the outlier
+            ax1.clear()
+            ax1.text(0.99, 0.99, "BC without outlier(s): %.2fm, %.2fm\nReference BC: %.2fm, %.2fm" % (bcx_new, bcy_new, bcx_ref, bcy_ref), ha='right', va='top', transform=ax1.transAxes)
+            ax1.scatter(bc_list[:, 0], bc_list[:, 1], color='blue')
+            ax1.quiver(*origin, np.sqrt(eigvals[0]) * eigvecs[0, 0], np.sqrt(eigvals[0]) * eigvecs[1, 0],
+                   angles='xy', scale_units='xy', scale=1, color='r', label='Eigenvector 1')
+
+            ax1.quiver(*origin, np.sqrt(eigvals[1]) * eigvecs[0, 1], np.sqrt(eigvals[1]) * eigvecs[1, 1],
+                   angles='xy', scale_units='xy', scale=1, color='g', label='Eigenvector 2')
+            ax1.axhline(0, color='black', linewidth=0.5)
+            ax1.axvline(0, color='black', linewidth=0.5)
+            ax1.scatter(bcx_ref, bcy_ref, marker = "+", c = "red", linewidth = 1, s = 100, label = "Reference BC")
+            ax1.scatter(bcx_new, bcy_new, marker = "+", c = "skyblue", linewidth = 1, s = 100, label = "BC without outlier(s)")
+            ax1.set_xlabel('Boundary condition X', fontsize = 11)
+            ax1.set_ylabel('Boundary condition Y', fontsize = 11)
+            ax1.set_title("Boundary conditions distribution", fontsize = 15)
+            ax1.legend()
+            calib_results["bcx_new"], calib_results["bcy_new"] = bcx_new, bcy_new
         # Redraw the figure
         fig.canvas.draw_idle()
     
+    # Computation of the boundary conditions with the outlier
+    folder = os.path.dirname(filename) # identify folder for the repository
+    shmin_ref, shmax_ref = np.array([row[1:] for row in calib_ls if row[0] == 'shmin'], dtype = float), np.array([row[1:] for row in calib_ls if row[0] == 'shmax'], dtype = float)
+    bcx_ref, bcy_ref = fast_calibration_main(folder, shmax_ref, shmin_ref, stress_vars, bcs, name)
+    
+    # Eigenvectors
     cov_matrix = np.cov(bc_list, rowvar=False) # Calculate the principal axes using PCA
     eigvals, eigvecs = np.linalg.eigh(cov_matrix)
+    
+    # Indices for the sample
     origin = np.median(bc_list, axis = 0)
-    indexes = np.array(calib_all).T[:4].T.astype(str).tolist()
-    index_labels = ['_'.join(map(str, idx)) for idx in indexes]
+    indexes = [row[:4].tolist() for row in calib_ls] # indexes of the bars
+    index_labels = [', '.join(map(str, idx)) for idx in indexes]
+    
+    # Plot figure
     fig = plt.figure(figsize=(14, 12))  # Adjust size as needed
-
+    
     # Top-left plot (Original Boundary Conditions distribution)
     ax1 = plt.subplot2grid((2, 2), (0, 0))  # Position at (0, 0)
     ax1.scatter(bc_list[:, 0], bc_list[:, 1], color='blue')
-    for i in range(len(eigvals)):
-        # Scale the eigenvectors by the square root of the eigenvalues for better visualization
-        eigvec = eigvecs[:, i]
-        eigval = np.sqrt(eigvals[i])
-        ax1.quiver(*origin, eigval * eigvec[0], eigval * eigvec[1],
-                   angles='xy', scale_units='xy', scale=1, color=['r', 'g'][i], label=f'Eigenvector {i+1}')
+    ax1.quiver(*origin, np.sqrt(eigvals[0]) * eigvecs[0, 0], np.sqrt(eigvals[0]) * eigvecs[1, 0],
+           angles='xy', scale_units='xy', scale=1, color='r', label='Eigenvector 1')
+
+    ax1.quiver(*origin, np.sqrt(eigvals[1]) * eigvecs[0, 1], np.sqrt(eigvals[1]) * eigvecs[1, 1],
+           angles='xy', scale_units='xy', scale=1, color='g', label='Eigenvector 2')
     ax1.axhline(0, color='black', linewidth=0.5)
     ax1.axvline(0, color='black', linewidth=0.5)
     ax1.scatter(bcx_ref, bcy_ref, marker = "+", c = "red", linewidth = 1, s = 100, label = "Reference Boundary Conditions")
+    
+    count_max = np.max(outlier_count)
+    detect_thresh_init = 50 # initial threshold for outlier detection
+    detect_thresh = detect_thresh_init
+    
+    # compute new boundary conditions without the outlier
+    ls_weights = [0 if count > detect_thresh * count_max / 100 else 1 for count in outlier_count]
+    calib_ls[:, -1] = ls_weights # set the weight of all the samples that are not labeled as outliers to 1
+    shmin_new, shmax_new = np.array([row[1:] for row in calib_ls if row[0] == 'shmin'], dtype = float), np.array([row[1:] for row in calib_ls if row[0] == 'shmax'], dtype = float)
+    bcx_new, bcy_new = fast_calibration_main(folder, shmax_new, shmin_new, stress_vars, bcs, name)
+    calib_results = {"bcx_new": bcx_new, "bcy_new": bcy_new}  # Initialize with initial values
+    
+    ax1.text(0.99, 0.99, "BC without outlier(s): %.2fm, %.2fm\nReference BC: %.2fm, %.2fm" % (bcx_new, bcy_new, bcx_ref, bcy_ref), ha='right', va='top', transform=ax1.transAxes)
+    ax1.scatter(bcx_new, bcy_new, marker = "+", c = "skyblue", linewidth = 1, s = 100, label = "Boundary Conditions without outlier(s)")
     ax1.set_xlabel('Boundary condition X', fontsize = 11)
     ax1.set_ylabel('Boundary condition Y', fontsize = 11)
     ax1.set_title("Boundary conditions distribution", fontsize = 15)
@@ -450,8 +494,10 @@ def plot_figure(bc_list, bc_list_square, outlier_count, calib_all, bcx_ref, bcy_
     # Top-right plot (Whitened transformed and reduced BC distribution)
     ax2 = plt.subplot2grid((2, 2), (0, 1))  # Position at (0, 1)
     ax2.scatter(bc_list_square[:, 0], bc_list_square[:, 1], color='red')
-    ax2.set_xlim([-2, 2])
-    ax2.set_ylim([-2, 2])
+    lim_value = np.max(np.abs(bc_list_square))
+    lim_plot = 2 if lim_value < 2 else lim_value
+    ax2.set_xlim([-lim_plot, lim_plot])
+    ax2.set_ylim([-lim_plot, lim_plot])
     square = patches.Rectangle((-1, -1), 2, 2, linewidth=1, edgecolor='k', facecolor='none')
     ax2.add_patch(square)
     ax2.axhline(0, color='black', linewidth=0.5)
@@ -463,35 +509,36 @@ def plot_figure(bc_list, bc_list_square, outlier_count, calib_all, bcx_ref, bcy_
     # Bottom plot (Outlier Presence by Location)
     ax3 = plt.subplot2grid((2, 2), (1, 0), colspan=2)  # Span both columns
     plt.subplots_adjust(bottom=0.17)  # Adjust to leave space for the slider
-    threshold = np.max(outlier_count)/2
-    bar_colors = ['red' if count > threshold else 'skyblue' for count in outlier_count]  # Recolor based on new threshold
-    bars = ax3.bar(index_labels, outlier_count, color=bar_colors)
+    bar_colors = ['red' if count > detect_thresh * count_max / 100 else 'skyblue' for count in outlier_count]  # Recolor based on new threshold
+    bars = ax3.bar(index_labels, outlier_count/count_max*100, color=bar_colors)
+    ax3.axhline(detect_thresh, linestyle = "--", c = "r")
     ax3.set_xticks(range(len(index_labels)))
     ax3.set_xticklabels(index_labels, rotation=45, fontsize=7, rotation_mode="anchor", ha='right')
-    ax3.set_xlabel('Location', fontsize = 13)
-    ax3.set_ylabel('Outlier Count', fontsize = 13)
-    count_max = np.max(outlier_count)
-    ax3.set_title(f'Outlier Presence by Location (Threshold: {count_max:.3f})', fontsize = 15)
+    ax3.set_xlabel('Stress magnitude data record', fontsize = 11)
+    ax3.set_ylim([0, 100])
+    ax3.set_ylabel('Score (as percentage of the max. score)', fontsize = 11)
+    ax3.set_title(f'Outlier Detection by Location (Detection level: {detect_thresh_init:.1f}% of the maximum score)')
 
-    plt.savefig("figure_outlier_id.svg")
+
 
     # Create the slider for the outlier plot
     ax_slider = plt.axes([0.2, 0.02, 0.65, 0.03], facecolor='lightgoldenrodyellow')  # Position of the slider
-    slider = Slider(ax_slider, 'Threshold (Total error weight)', 0.0, np.max(outlier_count), valinit=np.max(outlier_count/2))  # Slider range 0-2%
+    slider = Slider(ax_slider, 'Error limit [%]', 0.0, 100, valinit=detect_thresh)  # Slider range 0-2%
     slider.on_changed(update_plot)  # Attach the update function
-
-    # Show the final combined figure
+    plt.savefig("figure_outlier_id.svg")
     plt.show()
     # Clear the current figure if you want to continue plotting
     plt.clf()  # Clear the current figure
+    
+    print("\nBoundary conditions using all data records: BCX = %.2fm, BCY = %.2fm" % (bcx_ref, bcy_ref))
+    print("Boundary conditions excluding data records labelled as outliers: BCX = %.2fm, BCY = %.2fm" % (calib_results["bcx_new"], calib_results["bcy_new"]))
 
+###############################################################################################
 def main(filename, bcs, name):
-    import os
-    import pandas as pd
     stress_vars = ['SHmax', 'Shmin']
-    bc_list, all_samples, calib_all, boot_ls, bcx_ref, bcy_ref = bc_generator(bcs, filename, stress_vars, name)
-    bc_list_square, outlier_count = sample_scores(boot_ls, bc_list, all_samples, threshold)
-    plot_figure(bc_list, bc_list_square, outlier_count, calib_all, bcx_ref, bcy_ref)
+    bc_list, calib_ls, boot_ls = bc_generator(bcs, filename, stress_vars, name)
+    bc_list_square, outlier_count = sample_scores(boot_ls, bc_list, calib_ls, threshold)
+    plot_results(bc_list, bc_list_square, outlier_count, calib_ls, filename, stress_vars)
 
 ###############################################################################################
 if __name__ == '__main__':
