@@ -1,4 +1,4 @@
-# DOuGLAS
+# Python Script DOuGLAS v1.0
 ### *Detection of Outliers in Geomechanics using Linear-elastic Assumption and Statistics*
 
 
