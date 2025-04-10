@@ -10,7 +10,7 @@ Laruelle, L. (2025). Manual of the Python Script DOuGLAS v1.0. World Stress Map 
 DOI: http://doi.org/10.48440/wsm.2025.002 [![DOI](https://img.shields.io/badge/DOI-10.48440%2Fwsm.2025.002-blue.svg)](http://doi.org/10.48440/wsm.2025.002)
 
 ## Citation
-The recommended DOuGLAS is: (You can find the BibTeX snippet in the
+The recommended citation for DOuGLAS is: (You can find the BibTeX snippet in the
 [`CITATION` file](CITATION.bib)):
 
 > Laruelle, L. (2025). Python Script DOuGLAS v1.0. GFZ Data Services. DOI: http://doi.org/10.5880/wsm.2025.0012 
