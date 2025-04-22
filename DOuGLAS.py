@@ -1,6 +1,6 @@
 # DOuGLAS v1.0 - GPLv3
 # Louison Laruelle, laruelle@gfz.de
-# Manual: https://doi.org/10.48440/wsm.2025.002
+# Manual: https://doi.org/10.48440/wsm.2025.003
 # Download: https://github.com/louison-laruelle/douglas
 
 ##################################################################################################
