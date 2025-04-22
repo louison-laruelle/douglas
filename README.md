@@ -7,16 +7,16 @@
 Documentation and usage examples are available online at:
 
 Laruelle, L. (2025). Manual of the Python Script DOuGLAS v1.0. World Stress Map Technical Report 25-02, GFZ Helmholtz Centre for Geosciences.
-DOI: http://doi.org/10.48440/wsm.2025.002 [![DOI](https://img.shields.io/badge/DOI-10.48440%2Fwsm.2025.002-blue.svg)](http://doi.org/10.48440/wsm.2025.002)
+DOI: http://doi.org/10.48440/wsm.2025.002 [![DOI](https://img.shields.io/badge/DOI-10.48440%2Fwsm.2025.003-blue.svg)](http://doi.org/10.48440/wsm.2025.003)
 
 ## Citation
 The recommended citation for DOuGLAS is: (You can find the BibTeX snippet in the
 [`CITATION` file](CITATION.bib)):
 
-> Laruelle, L. (2025). Python Script DOuGLAS v1.0. GFZ Data Services. DOI: http://doi.org/10.5880/wsm.2025.0012 
+> Laruelle, L. (2025). Python Script DOuGLAS v1.0. GFZ Data Services. DOI: http://doi.org/10.5880/wsm.2025.003
 
 
-[![DOI](https://img.shields.io/badge/DOI-10.5880%2Fwsm.2025.002-blue.svg)](http://doi.org/10.5880/wsm.2025.002)
+[![DOI](https://img.shields.io/badge/DOI-10.5880%2Fwsm.2025.003-blue.svg)](http://doi.org/10.5880/wsm.2025.003)
 
 ## License 
 GNU General Public License, Version 3, 29 June 2007
