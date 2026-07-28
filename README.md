@@ -13,7 +13,7 @@ The recommended citation for DOuGLAS is: (You can find the BibTeX snippet in the
 
 > Laruelle, L., Ziegler, M.O. (2025). Python Script DOuGLAS v1.0. GFZ Data Services. DOI: https://doi.org/10.5880/wsm.2025.003
 
-[![DOI](https://img.shields.io/badge/DOI-10.5880%2Fwsm.2026.001-blue.svg)](https://doi.org/10.5880/wsm.2025.003)
+[![DOI](https://img.shields.io/badge/DOI-10.5880%2Fwsm.2025.003-blue.svg)](https://doi.org/10.5880/wsm.2025.003)
 
 ## License 
 GNU General Public License, Version 3, 29 June 2007
