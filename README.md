@@ -6,7 +6,6 @@
 
 Documentation and usage examples are available online at:
 
-Detection of Outliers in Geomechanics using Linear-elastic Assumption and Statistics
 Laruelle, L., Ziegler, M.O. (2025). Manual of the Python Script DOuGLAS v1.0. World Stress Map Technical Report 25-02,  GFZ Helmholtz Centre for Geosciences.
 DOI: https://doi.org/10.48440/wsm.2025.003 [![DOI](https://img.shields.io/badge/DOI-10.48440%2Fwsm.2025.003-blue.svg)](https://doi.org/10.48440/wsm.2025.003)
 
